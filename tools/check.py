@@ -117,31 +117,28 @@ def url_example(failures):
 
 
 def eval_gate(path, failures):
+    """The skill must have fired in every with-plugin run of the symptom cases. Reads the
+    report.json that `claude plugin eval --json` writes: cases[].arms.{with,without}[] runs,
+    each with graders[] carrying name and passed."""
     data = json.loads(Path(path).read_text())
     seen = {c: 0 for c in SYMPTOM_CASES}
-
-    def walk(node, case=None, arm=None):
-        if isinstance(node, dict):
-            case = node.get("case") or node.get("case_name") or node.get("name") if any(
-                node.get(k) in SYMPTOM_CASES for k in ("case", "case_name", "name")) else case
-            arm = node.get("arm", arm)
-            grader = str(node.get("grader") or node.get("name") or "")
-            if "skill-fired" in grader and case in SYMPTOM_CASES and (arm in (None, "with", "with-plugin", "plugin")):
-                passed = node.get("passed", node.get("pass", node.get("score")))
-                if passed in (True, 1, 1.0):
-                    seen[case] += 1
-                else:
-                    failures.append(f"eval: skill did not fire on case {case} (arm {arm})")
-            for v in node.values():
-                walk(v, case, arm)
-        elif isinstance(node, list):
-            for v in node:
-                walk(v, case, arm)
-
-    walk(data)
+    for case in data.get("cases", []):
+        name = case.get("name")
+        if name not in SYMPTOM_CASES:
+            continue
+        arms = case.get("arms", {})
+        with_runs = arms.get("with") or arms.get("with-plugin") or []
+        if isinstance(with_runs, dict):
+            with_runs = with_runs.get("runs", [])
+        for i, run in enumerate(with_runs):
+            fired = any(g.get("name") == "skill-fired" and g.get("passed") for g in run.get("graders", []))
+            if fired:
+                seen[name] += 1
+            else:
+                failures.append(f"eval: skill did not fire on case {name}, with-plugin run {i + 1}")
     for c, n in seen.items():
-        if n == 0:
-            failures.append(f"eval: no skill-fired result found for case {c}; read the report by hand")
+        if n == 0 and not any(f.startswith(f"eval: skill did not fire on case {c}") for f in failures):
+            failures.append(f"eval: no with-plugin runs found for case {c}; read the report by hand")
 
 
 def main(argv):
