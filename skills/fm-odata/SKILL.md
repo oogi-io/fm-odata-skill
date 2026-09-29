@@ -10,8 +10,8 @@ a URL; it carries the evidence for every line below.
 ## Five behaviours
 
 1. **Date and timestamp literals are unquoted.** `Date eq 2026-03-02` works. `Date eq '2026-03-02'` returns
-   no error and no usable data: nulls on one host, zero rows on another. A timestamp needs the full ISO form,
-   `2026-03-02T00:00:00Z` on the host where it was tried.
+   no error and no usable data: zero rows, on both hosts observed. A timestamp needs the full ISO form with a
+   zone, `2026-03-02T00:00:00Z`; without the zone the server answers -1002.
 2. **Never build the query string with a form encoder.** `URLSearchParams` turns `$filter` into `%24filter`,
    which the server drops before returning the whole table, and every form encoder, `curl --data-urlencode`
    included, turns a space into `+`, which the server refuses with -1002. Keep `$` literal, write spaces as

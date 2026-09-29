@@ -45,12 +45,11 @@ there is no hook. When it does not fire, "use the fm-odata skill" in the prompt 
 
 Its default is reads. Whether an agent may write through OData is your organisation's rule.
 
-## Why 0.9.0
+## Why 1.0.0
 
-Encoding, paging, date literals and field-name quoting were observed on two FileMaker Server hosts, and two
-of them are documented by Claris. Three behaviours (`$count` failing, `$orderby` failing, `$select` with
-`$filter` on a dotted name) were observed on one host only and are marked as such. `1.0.0` when they have a
-second observation or are retired. The Verify section in the guideline shows how to test each claim on your
+Every behaviour except one (the `ID` field name) was observed on two FileMaker Server hosts, and two of them
+are documented by Claris. Three earlier single-host claims were retested on the second host and retired; the
+Evidence table says which and why. The Verify section in the guideline shows how to test each claim on your
 own server in one request; a report of what you saw is a welcome pull request.
 
 ## Contributing

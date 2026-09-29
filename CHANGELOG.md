@@ -1,6 +1,7 @@
 # Changelog
 
-## 0.9.0, 2026-09-29
+## 1.0.0, 2026-09-29
 
-First release. Encoding, paging, date literals and field-name quoting are observed on two FileMaker
-Server hosts; three behaviours are observed on one host only and say so in the Evidence table.
+First release. Encoding, paging, date and timestamp literals, `$count`, `$orderby` and dotted field names
+observed on two FileMaker Server hosts; three earlier single-host claims retested on the second host and
+retired; the `curl --data-urlencode` failure named precisely (it is the `+`).

@@ -1,10 +1,18 @@
 {
   "name": "fm-odata",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Point your AI here and it'll be able to work with OData. FileMaker OData behaviours that return wrong data instead of errors: encoding, date literals, the 10,000-row stop, quoted field names, the entity key.",
-  "author": { "name": "OOGI BV", "url": "https://oogi.io" },
+  "author": {
+    "name": "OOGI BV",
+    "url": "https://oogi.io"
+  },
   "homepage": "https://github.com/oogi-io/fm-odata-skill",
   "repository": "https://github.com/oogi-io/fm-odata-skill",
   "license": "MIT",
-  "keywords": ["filemaker", "claris", "odata", "skill"]
+  "keywords": [
+    "filemaker",
+    "claris",
+    "odata",
+    "skill"
+  ]
 }
