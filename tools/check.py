@@ -108,6 +108,8 @@ def url_example(failures):
         ("%20" in url and "+" not in url, "spaces must be %20"),
         ("%7E" in url, "~ must be %7E"),
         ("'a%20b'" in url and '"ID"' in url, "quotes must stay literal"),
+        ("%3A" not in ns["odata_url"]("https://host.example/x", "INV__Invoice", filter="D ge 2020-01-01T00:00:00Z"), ": must stay literal"),
+        ("%2C" not in ns["odata_url"]("https://host.example/x", "INV__Invoice", select='"ID",Total'), ", must stay literal"),
     ]
     for ok, what in checks:
         if not ok:

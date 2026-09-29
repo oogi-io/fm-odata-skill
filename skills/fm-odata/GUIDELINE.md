@@ -50,7 +50,9 @@ Observed: host A, 2026-09-28; host B, 2026-09-25.
 | `$` in `$filter`, `$select`, `$top`, `$orderby`, `$count` | stays literal | `%24top=3` is ignored and the whole table returns; observed on host A on a 1,633-row table, all rows |
 | space | `%20` | `+` is refused: -1002 "syntax error in URL at: '+'" |
 | `~` | `%7E` | rejected raw (host B only) |
-| `(`, `)`, `,`, `'`, `"` | stay literal | they are OData syntax |
+| `:` in a timestamp literal | stays literal | `%3A` is refused: -1002 at `T00%3A00%3A00Z` |
+| `,` in a `$select` list | stays literal | `%2C` is refused: -1002 at `%2CCallDuration` |
+| `(`, `)`, `'`, `"` | stay literal | they are OData syntax; `%28` and `%22` were accepted on host A, so encoding them is harmless, decoding them is not required |
 
 `URLSearchParams`, `curl --data-urlencode` and most form encoders break the first two rules at once. An
 open-source FileMaker OData client library on GitHub rewrites its own encoded query string afterwards,
@@ -64,13 +66,14 @@ from urllib.parse import quote
 def odata_url(base, entity_set, **options):
     """base: https://host.example/fmi/odata/v4/DB ; options: filter='...', select='...', top=5"""
     def enc(value):
-        return quote(str(value), safe="(),'\"=").replace("~", "%7E")
+        return quote(str(value), safe="(),'\":=/").replace("~", "%7E")
     query = "&".join(f"${key}={enc(value)}" for key, value in options.items())
     return f"{base}/{quote(entity_set)}" + (f"?{query}" if query else "")
 ```
 
 `quote` leaves `$` alone because it is only applied to values, encodes a space as `%20`, keeps the OData
-syntax characters listed above, and `~` is forced to `%7E` because `quote` leaves it raw by default.
+syntax characters listed above including `:` and `,`, and `~` is forced to `%7E` because `quote` leaves it raw
+by default.
 
 ## Field names and the entity key
 
@@ -200,6 +203,7 @@ One request per claim. Run each against a table you know.
 |---|---|---|---|
 | `$`-prefixed options must stay literal; `%24top` is dropped and the table returns | host A, 2026-09-28, 1,633-row table: `%24top=3` returned every row, `$top=3` returned 3 | an open-source FileMaker OData client on GitHub rewrites `%24` back to `$` and `+` to `%20` after encoding | not stated |
 | A space sent as `+` is refused with -1002 | host A 2026-09-28; host B 2026-09-25 | the same library | not stated |
+| `%3A` inside a timestamp literal and `%2C` inside a `$select` list are refused with -1002; `%28` and `%22` are accepted | host A 2026-09-29 | a second developer's agent hit the `%3A` case independently the day before | not stated |
 | A quoted date or timestamp literal returns no error and no usable data; unquoted ISO 8601 works | host A 2026-09-28 (quoted: zero rows; `T00:00:00` alone -1002; `T00:00:00Z` rows; offsets untried); host B 2026 (quoted: nulls, as recorded) | none | "Date, time, and timestamp formats conform to ISO 8601. Time zone offsets are relative to the time zone of the server." |
 | A response stops at 10,000 rows; the continuation is `@nextLink` with `$skiptoken=s10000t0` | host A 2026-09-28 (22,668-row table, two pages); host B 2026-09-25 (three tables) | none | "A maximum of 10,000 records are returned at a time. If the total records in a request exceeds 10,000, the nextLink value is also returned providing the next set of records." Key name not given. |
 | Annotations omit the `odata.` segment | host A 2026-09-28 (`@context`, `@count`, `@nextLink`, `@id`, `@editLink`); `@nextLink` also host B | none | not stated |
