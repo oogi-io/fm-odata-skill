@@ -54,7 +54,9 @@ Observed: host A, 2026-09-28; host B, 2026-09-25.
 | `,` in a `$select` list | stays literal | `%2C` is refused: -1002 at `%2CCallDuration` |
 | `(`, `)`, `'`, `"` | stay literal | they are OData syntax; `%28` and `%22` were accepted on host A, so encoding them is harmless, decoding them is not required |
 
-`URLSearchParams`, `curl --data-urlencode` and most form encoders break the first two rules at once. An
+`URLSearchParams` breaks the first two rules at once. `curl --data-urlencode` keeps the option name literal
+and breaks the second: on host A, 2026-09-29, `--data-urlencode '$filter="ID" gt 0'` was sent as
+`$filter=%22ID%22+gt+0` and answered -1002 at `+`. An
 open-source FileMaker OData client library on GitHub rewrites its own encoded query string afterwards,
 turning `%24` back into `$` and `+` into `%20`, which is the same conclusion reached the hard way.
 
