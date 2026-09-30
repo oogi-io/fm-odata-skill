@@ -2,8 +2,8 @@
 
 Point your AI here and it'll be able to work with OData.
 
-Scope: two FileMaker Server hosts, called host A and host B, on FileMaker Server 2023 or 2024 (the exact
-version per host is not pinned yet). Every behaviour states where and when it was observed. The Evidence
+Scope: two FileMaker Server hosts, called host A and host B. Host B reports version 22.0 (read 2026-09-30);
+host A's version is not pinned yet. Every behaviour states where and when it was observed. The Evidence
 table at the end lists, per claim, the observation, any independent corroboration, and what Claris's own
 OData guide says. One claim (the `ID` field name) rests on one host and says so; three earlier single-host
 claims were retested on the second host on 2026-09-29 and retired. The Verify section shows how to test each one
@@ -17,6 +17,13 @@ An OData entity set maps to a table occurrence in the relationship graph, not to
 table. A base table occurrence usually carries the table's name (`INV__Invoice`); a prefixed occurrence
 (`CUST_INV__Invoice__open`) is the same table seen from another context. A prefixed occurrence is not a
 filtered view: it returns the table's rows unless you filter.
+
+An occurrence whose name contains `~` cannot be addressed in the URL path at all, as an entity set or as a
+navigation segment. The server answers -1002 "syntax error in URL at:" followed by the text after the `~`:
+as an entity set whether the `~` is sent raw, as `%7E` or inside double quotes, and as a navigation segment
+raw or as `%7E`. A `~` in a query option value is unaffected (see Query string encoding). Reach the base table through another occurrence, or rename it.
+
+Observed: host B, 2026-09-30.
 
 ### Filter on the server
 
@@ -75,7 +82,8 @@ def odata_url(base, entity_set, **options):
 
 `quote` leaves `$` alone because it is only applied to values, encodes a space as `%20`, and keeps the OData
 syntax characters listed above including `:` and `,`. `~` is sent as `%7E`; both hosts accepted it raw too on
-2026-09-29, so that is habit, not a rule.
+2026-09-29, so that is habit, not a rule. That holds for query option values only: a `~` in a table
+occurrence name in the path failed in every form tried (see Entity set = table occurrence).
 
 ## Field names and the entity key
 
@@ -181,6 +189,14 @@ guideline's default is reads.
 Filter on the foreign key that points at the parent, then make a second, filtered request for the related
 rows you need. `$orderby` sorts on the server.
 
+A second route is navigation: `Parent(<record id>)/<RelatedOccurrence>`, with the record id from the
+parent's `@editLink`, returns the related records as the relationship graph defines them, matched by
+FileMaker's own rules, which is the set a portal on that relationship shows. `$select` works on it. That
+makes it the one read-only way to test a relationship's predicates from outside FileMaker: compare the
+navigation count with a direct filter on the foreign key.
+
+Observed: host B, 2026-09-30.
+
 ## Verify on your host
 
 One request per claim. Run each against a table you know.
@@ -195,6 +211,8 @@ One request per claim. Run each against a table you know.
 | 10,000-row stop | a `$select` of one field on a table over 10,000 rows, no `$top` | 10,000 rows and `@nextLink` |
 | `$count` | `?$count=true&$top=1` | `@count` in the response |
 | `$orderby` | `?$orderby="F" desc&$top=1` and unquoted | 200 both ways |
+| navigation follows the relationship | `Parent(<record id>)/<RelatedOccurrence>?$select=<fk>` and `/<RelatedTable>?$filter=<fk> eq '<parent key>'` | the same row count, on a relationship with the key as its only predicate |
+| `~` in an occurrence name | `/<Occurrence~Name>?$top=1`, then an occurrence without `~` | the first answers -1002 at the text after `~`, the second 200 |
 | dotted field name | `?$filter=A.B eq <typed literal>&$select=A.B&$top=2` | rows, with only that column |
 
 ## Evidence
@@ -212,6 +230,8 @@ One request per claim. Run each against a table you know.
 | `$count=true` works; the count ignores `$top`, the rows honour it | host A 2026-09-28 (`@count: 22668`); host B 2026-09-29 (`@count: 3306`) | none | documented, with the `$top`/`$skip` note |
 | `$orderby` works, quoted and unquoted, on names with underscores | host A 2026-09-28; host B 2026-09-29 | none | quoting rule as above |
 | A dotted field name works in `$filter` and `$select` when the literal matches the type | host B 2026-09-29 (`_trigger.names eq 1`, numeric) | none | not stated |
+| Navigation `Parent(<record id>)/<RelatedOccurrence>` returns the related set as the relationship defines it | host B 2026-09-30: six parent records on each of two databases, the navigation count equal to a direct foreign-key filter each time (6 to 109 rows); occurrences with extra predicates returned the filtered subset | none | not checked |
+| An occurrence whose name contains `~` cannot be addressed in the path: entity set raw, `%7E` or double-quoted, navigation segment raw or `%7E` | host B 2026-09-30: -1002 at the text after `~` in all five forms; the same request on an occurrence without `~` 200 | none | not checked |
 | Retired 2026-09-29: `$count` 400, `$orderby` -1002, dotted names zero rows, `~` rejected raw | all four were host B, 2026, before the encoding and literal rules were known; none reproduced on 2026-09-29 | | |
 
 ## Contributing a claim
