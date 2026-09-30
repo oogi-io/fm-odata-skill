@@ -1,6 +1,6 @@
 {
   "name": "fm-odata",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Point your AI here and it'll be able to work with OData. FileMaker OData behaviours that return wrong data instead of errors: encoding, date literals, the 10,000-row stop, quoted field names, the entity key.",
   "author": {
     "name": "OOGI BV",
