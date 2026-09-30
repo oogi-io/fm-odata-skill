@@ -17,6 +17,11 @@ SELF = Path(__file__).resolve()
 SKIP_DIRS = {".git", "results", "node_modules"}
 SKIP_FILES = {"LICENSE"}
 
+# HOST_ALLOW holds public sites the text may cite (documentation, this project's own pages). Never a
+# FileMaker server: a server is described ("host A, FileMaker Server 22, cloud"), not named.
+# TO_ALLOW (below) holds the two neutral example names. Never a real table occurrence: rename it to
+# INV__Invoice in the text.
+# This script does not scan itself, so a line added to either list is seen only in the diff.
 HOST_ALLOW = {
     "github.com", "help.claris.com", "claris.com", "oasis-open.org", "example.com",
     "creativecommons.org", "claude.com", "code.claude.com", "oogi.io",
@@ -53,13 +58,19 @@ def scrub(failures):
             for m in HOST_RE.finditer(line):
                 host = m.group(1)
                 if host not in HOST_ALLOW and not any(host.endswith("." + a) for a in HOST_ALLOW):
-                    failures.append(f"{rel}:{n}: hostname not on the allowlist: {host}")
+                    failures.append(
+                        f"{rel}:{n}: hostname in the text: {host}. If it is a FileMaker server, describe it "
+                        "instead of naming it (README, Contributing). If it is a public site the text cites, "
+                        "add it to HOST_ALLOW.")
             for rx in PATH_RES:
                 if rx.search(line):
                     failures.append(f"{rel}:{n}: machine-specific path or file reference: {rx.pattern}")
             for m in TO_RE.finditer(line):
                 if m.group(1) not in TO_ALLOW:
-                    failures.append(f"{rel}:{n}: table-occurrence-shaped name outside the neutral examples: {m.group(1)}")
+                    failures.append(
+                        f"{rel}:{n}: table-occurrence-shaped name in the text: {m.group(1)}. Use a neutral "
+                        "example (INV__Invoice) instead of a real table occurrence; TO_ALLOW is for the "
+                        "neutral examples only.")
             for ch, name in GLYPHS.items():
                 if ch in line:
                     failures.append(f"{rel}:{n}: {name}")
