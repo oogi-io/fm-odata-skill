@@ -81,9 +81,11 @@ def odata_url(base, entity_set, **options):
 ```
 
 `quote` leaves `$` alone because it is only applied to values, encodes a space as `%20`, and keeps the OData
-syntax characters listed above including `:` and `,`. `~` is sent as `%7E`; both hosts accepted it raw too on
-2026-09-29, so that is habit, not a rule. That holds for query option values only: a `~` in a table
-occurrence name in the path failed in every form tried (see Entity set = table occurrence).
+syntax characters listed above including `:` and `,`. `~` is sent as `%7E`, and that is a rule: both hosts
+accepted it raw on 2026-09-29, but on 2026-10-05 host B refused a raw `~` in a `$select` field name with -1002
+at the text after it, while `%7E` and the double-quoted name both returned the field. That holds for query
+option values only: a `~` in a table occurrence name in the path failed in every form tried (see Entity set =
+table occurrence).
 
 ## Field names and the entity key
 
@@ -238,6 +240,7 @@ One request per claim. Run each against a table you know.
 | A quoted date or timestamp literal returns no error and no usable data; unquoted ISO 8601 works; a timestamp needs a zone | host A 2026-09-28 and host B 2026-09-29, same three results (quoted: zero rows; `T00:00:00` alone -1002; `T00:00:00Z` rows; offsets untried); host B 2026 also recorded nulls for a quoted date | none | "Date, time, and timestamp formats conform to ISO 8601. Time zone offsets are relative to the time zone of the server." |
 | A response stops at 10,000 rows; the continuation is `@nextLink` with `$skiptoken=s10000t0` | host A 2026-09-28 (22,668-row table, two pages); host B 2026-09-25 (three tables) | none | "A maximum of 10,000 records are returned at a time. If the total records in a request exceeds 10,000, the nextLink value is also returned providing the next set of records." Key name not given. |
 | The server's `@nextLink` encodes the `:` of a timestamp in `$filter` as `%3A` and refuses it (-1002); decoding it to `:` works; `$top=10000` returns no `@nextLink` | host B 2026-10-05 (11,017 rows: page 1 10,000, link refused as given, 1,017 after decoding; `/$count` 11,017) | none | not stated |
+| A raw `~` in a `$select` field name is refused (-1002 at the text after `~`); `%7E` and the double-quoted name work | host B 2026-10-05: `_k1_ID,<field~name>` 400, the same with `%7E` 200, with `%22...%22` 200; host B accepted it raw on 2026-09-29 | none | not stated |
 | Annotations omit the `odata.` segment | host A 2026-09-28 (`@context`, `@count`, `@nextLink`, `@id`, `@editLink`); `@nextLink` also host B | none | not stated |
 | `ID` fails unquoted (-1002) and works double-quoted in `$select`, `$orderby`, `$filter` | host A 2026-09-28 | none | "Enclose field names that include special characters, such as spaces or underscores, in double-quotation marks." Reserved words not mentioned. |
 | The entity key is the record id from `@editLink`, not the `ID` field | host A 2026-09-28: `Table(<ID value>)` -1023, `Table('<ID value>')` 8309, `$filter="ID" eq <value>` 200 | none | not stated |
@@ -246,7 +249,7 @@ One request per claim. Run each against a table you know.
 | A dotted field name works in `$filter` and `$select` when the literal matches the type | host B 2026-09-29 (`_trigger.names eq 1`, numeric) | none | not stated |
 | Navigation `Parent(<record id>)/<RelatedOccurrence>` returns the related set as the relationship defines it | host B 2026-09-30: six parent records on each of two databases, the navigation count equal to a direct foreign-key filter each time (6 to 109 rows); occurrences with extra predicates returned the filtered subset | none | not checked |
 | An occurrence whose name contains `~` cannot be addressed in the path: entity set raw, `%7E` or double-quoted, navigation segment raw or `%7E` | host B 2026-09-30: -1002 at the text after `~` in all five forms; the same request on an occurrence without `~` 200 | none | not checked |
-| Retired 2026-09-29: `$count` 400, `$orderby` -1002, dotted names zero rows, `~` rejected raw | all four were host B, 2026, before the encoding and literal rules were known; none reproduced on 2026-09-29 | | |
+| Retired 2026-09-29: `$count` 400, `$orderby` -1002, dotted names zero rows | all three were host B, 2026, before the encoding and literal rules were known; none reproduced on 2026-09-29. (`~` rejected raw was retired with them and came back on 2026-10-05, see above.) | | |
 
 ## Contributing a claim
 

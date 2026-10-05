@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3, 2026-10-05
+
+`~` in a query option value must be sent as `%7E`. Host B refused a raw `~` in a `$select` field name with
+-1002, where on 2026-09-29 it had accepted it; `%7E` and the double-quoted name both work. The GUIDELINE
+called the encoding a habit; it is now a rule in SKILL.md behaviour 2, with the claim in the findings table.
+
 ## 1.0.2, 2026-10-05
 
 The server's own `@nextLink` breaks when the `$filter` holds a timestamp: it percent-encodes the `:` and

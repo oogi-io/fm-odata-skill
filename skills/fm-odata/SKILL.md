@@ -16,8 +16,9 @@ a URL; it carries the evidence for every line below.
    which the server drops before returning the whole table, and every form encoder, `curl --data-urlencode`
    included, turns a space into `+`, which the server refuses with -1002. Keep `$` literal, write spaces as
    `%20`, concatenate by hand. Percent-encoding a whole value breaks it too: the `,` in a `$select` list and
-   the `:` in a timestamp must stay literal, `%2C` and `%3A` are refused with -1002. GUIDELINE.md has a
-   function that builds a correct URL.
+   the `:` in a timestamp must stay literal, `%2C` and `%3A` are refused with -1002. The one character that
+   must be encoded is `~`: send it as `%7E` (or double-quote the field name), raw it can answer -1002.
+   GUIDELINE.md has a function that builds a correct URL.
 3. **A response stops at 10,000 rows.** The continuation is under `@nextLink`, not `@odata.nextLink`. Loop on
    the key and accept both spellings, or a large table reads as complete at exactly 10,000. The server's own
    `@nextLink` percent-encodes the `:` of a timestamp in `$filter` and is then refused with -1002: replace
