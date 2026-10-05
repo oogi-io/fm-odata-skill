@@ -110,7 +110,8 @@ or use the row's `@editLink`.
 
 ## Paging
 
-Observed: host A, 2026-09-28 (a 22,668-row table, two pages followed); host B, 2026-09-25 (three tables).
+Observed: host A, 2026-09-28 (a 22,668-row table, two pages followed); host B, 2026-09-25 (three tables) and
+2026-10-05 (the timestamp case below).
 
 A response holds at most 10,000 rows. Claris: "A maximum of 10,000 records are returned at a time. If the
 total records in a request exceeds 10,000, the nextLink value is also returned providing the next set of
@@ -118,12 +119,23 @@ records." What the guide does not say: the key is `@nextLink`, not the standard 
 carries `$skiptoken=s10000t0`. Code that reads one response, or looks for the standard key, reports a
 truncated table as complete.
 
+The server breaks its own continuation when the `$filter` holds a timestamp. On host B, 2026-10-05, a
+filter `CreatedAt ge 2025-10-05T00:00:00Z` over 11,017 rows returned 10,000 rows and an `@nextLink` in
+which the timestamp read `2025-10-05T00%3A00%3A00Z`; following the link as given answered -1002 "syntax
+error in URL at: 'T00%3A00%3A00Z'", the same refusal as a hand-written `%3A` (see encoding). With `%3A`
+put back to `:` the link returned the remaining 1,017 rows. The loop below does that.
+
+`$top` is not a way to ask for everything: `$top=10000` on the same filter returned 10,000 rows and no
+`@nextLink`, so the table read as complete. Leave `$top` off, or compare with `/$count` (11,017 here).
+
 ```python
 url = odata_url(base, "INV__Invoice", select='"ID"')
 while url:
     data = get(url)                       # your HTTP call, returning the parsed JSON
     yield from data.get("value", [])
     url = data.get("@nextLink") or data.get("@odata.nextLink")
+    if url:
+        url = url.replace("%3A", ":").replace("%3a", ":")   # the server's own link encodes the colon
 ```
 
 ## Annotations
@@ -209,6 +221,7 @@ One request per claim. Run each against a table you know.
 | quote a failing name | `?$select=ID` then `?$select="ID"` | the first answers -1002, the second 200 |
 | entity key is the record id | read `@editLink` from a row, then `Table(<that number>)` | 200 with the record |
 | 10,000-row stop | a `$select` of one field on a table over 10,000 rows, no `$top` | 10,000 rows and `@nextLink` |
+| `@nextLink` with a timestamp filter | the same, with `$filter=<timestamp field> ge <ISO timestamp with Z>`; follow `@nextLink` as given, then with `%3A` replaced by `:` | the first answers -1002 at `%3A`, the second returns the next page |
 | `$count` | `?$count=true&$top=1` | `@count` in the response |
 | `$orderby` | `?$orderby="F" desc&$top=1` and unquoted | 200 both ways |
 | navigation follows the relationship | `Parent(<record id>)/<RelatedOccurrence>?$select=<fk>` and `/<RelatedTable>?$filter=<fk> eq '<parent key>'` | the same row count, on a relationship with the key as its only predicate |
@@ -224,6 +237,7 @@ One request per claim. Run each against a table you know.
 | `%3A` inside a timestamp literal and `%2C` inside a `$select` list are refused with -1002; `%28` and `%22` are accepted | host A 2026-09-29 | a second developer's agent hit the `%3A` case independently the day before | not stated |
 | A quoted date or timestamp literal returns no error and no usable data; unquoted ISO 8601 works; a timestamp needs a zone | host A 2026-09-28 and host B 2026-09-29, same three results (quoted: zero rows; `T00:00:00` alone -1002; `T00:00:00Z` rows; offsets untried); host B 2026 also recorded nulls for a quoted date | none | "Date, time, and timestamp formats conform to ISO 8601. Time zone offsets are relative to the time zone of the server." |
 | A response stops at 10,000 rows; the continuation is `@nextLink` with `$skiptoken=s10000t0` | host A 2026-09-28 (22,668-row table, two pages); host B 2026-09-25 (three tables) | none | "A maximum of 10,000 records are returned at a time. If the total records in a request exceeds 10,000, the nextLink value is also returned providing the next set of records." Key name not given. |
+| The server's `@nextLink` encodes the `:` of a timestamp in `$filter` as `%3A` and refuses it (-1002); decoding it to `:` works; `$top=10000` returns no `@nextLink` | host B 2026-10-05 (11,017 rows: page 1 10,000, link refused as given, 1,017 after decoding; `/$count` 11,017) | none | not stated |
 | Annotations omit the `odata.` segment | host A 2026-09-28 (`@context`, `@count`, `@nextLink`, `@id`, `@editLink`); `@nextLink` also host B | none | not stated |
 | `ID` fails unquoted (-1002) and works double-quoted in `$select`, `$orderby`, `$filter` | host A 2026-09-28 | none | "Enclose field names that include special characters, such as spaces or underscores, in double-quotation marks." Reserved words not mentioned. |
 | The entity key is the record id from `@editLink`, not the `ID` field | host A 2026-09-28: `Table(<ID value>)` -1023, `Table('<ID value>')` 8309, `$filter="ID" eq <value>` 200 | none | not stated |

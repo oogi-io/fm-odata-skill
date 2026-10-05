@@ -19,7 +19,10 @@ a URL; it carries the evidence for every line below.
    the `:` in a timestamp must stay literal, `%2C` and `%3A` are refused with -1002. GUIDELINE.md has a
    function that builds a correct URL.
 3. **A response stops at 10,000 rows.** The continuation is under `@nextLink`, not `@odata.nextLink`. Loop on
-   the key and accept both spellings, or a large table reads as complete at exactly 10,000.
+   the key and accept both spellings, or a large table reads as complete at exactly 10,000. The server's own
+   `@nextLink` percent-encodes the `:` of a timestamp in `$filter` and is then refused with -1002: replace
+   `%3A` with `:` before following it. Never set `$top=10000` to mean "everything": it returns 10,000 rows and
+   no `@nextLink`.
 4. **A field name that fails unquoted works double-quoted.** `$select=ID` answers -1002; `$select="ID"`,
    `$orderby="ID"` and `$filter="ID" gt 0` work. Quote any name you are unsure of. The entity key in
    `Table(key)` is FileMaker's record id, the number in `@editLink`, not the table's `ID` field.
