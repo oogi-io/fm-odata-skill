@@ -60,5 +60,5 @@ hostnames and table-occurrence-shaped names on every push.
 
 ## Licence
 
-MIT, OOGI BV. Sibling of [fmsonar](https://github.com/oogi-io/fm-ddr-analyzer) and
+MIT, OOGI BV. Sibling of [fmsonar](https://github.com/oogi-io/fmsonar) and
 [fmstyle](https://github.com/oogi-io/fm-code-formatter).
