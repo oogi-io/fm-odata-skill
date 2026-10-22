@@ -27,6 +27,10 @@ a URL; it carries the evidence for every line below.
 4. **A field name that fails unquoted works double-quoted.** `$select=ID` answers -1002; `$select="ID"`,
    `$orderby="ID"` and `$filter="ID" gt 0` work. Quote any name you are unsure of. The entity key in
    `Table(key)` is FileMaker's record id, the number in `@editLink`, not the table's `ID` field.
+   For a PATCH or DELETE, copy the key from the record's own `@editLink`, whole: it can be composite,
+   `('a','b','79')`, and every part counts, quoted parts quoted. A shorter key is matched against the first
+   key field and still answers success: PATCH then creates a new record (201, not 200) and DELETE removes
+   whichever record holds that leading value (204). A PATCH that answers 201 created a record; read it back.
 5. **Annotations omit the `odata.` segment.** `@context`, `@count`, `@nextLink`, `@id`, `@editLink`. Code that
    looks for `@odata.count` finds nothing.
 
@@ -39,7 +43,8 @@ finding.
 ## Writes
 
 POST, PATCH, DELETE and a script endpoint exist. The rule here is reads; a write happens only on an
-instruction that names the record and the change, and an organisation's own rule wins over that.
+instruction that names the record and the change, and an organisation's own rule wins over that. Address
+the record with its full `@editLink` key (behaviour 4), never with a field you take for the key.
 
 ## Entity sets
 

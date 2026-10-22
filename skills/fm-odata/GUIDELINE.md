@@ -110,6 +110,31 @@ not the table's `ID` field: `Table(<ID value>)` answered -1023 "record not found
 answered 8309 "incompatible data types". To address one record, filter on the field (`$filter="ID" eq 5`)
 or use the row's `@editLink`.
 
+### A composite key
+
+Observed: host B, 2026-10-22.
+
+The key can consist of several fields. `$metadata` lists them under `<Key>`, and `@editLink` carries all of
+them in that order: `INV__Invoice('<uuid-a>','<uuid-b>','79')`, three text fields, the last a quoted number.
+Address a write with the whole key. A key with fewer parts is not refused: the server binds the value to the
+first key field and answers success either way.
+
+```
+PATCH INV__Invoice('<uuid-b>')                201, and a new record: the first key field holds '<uuid-b>',
+                                              the other key fields are auto-entered, only the patched
+                                              fields are set; the record you meant is unchanged
+PATCH INV__Invoice('<uuid-a>','<uuid-b>','79')  200, the record you meant is changed
+DELETE INV__Invoice('<uuid-b>')               204, and the record whose first key field is '<uuid-b>' is
+                                              gone (here the one the PATCH above had created); the
+                                              record you meant is untouched
+DELETE INV__Invoice('<uuid-a>','<uuid-b>','79') 204, the record you meant is gone
+```
+
+So a PATCH on a key that matches nothing is an upsert, and a DELETE on a partial key removes another record
+if one holds that value first. Take the key for every write from the record's own `@editLink`, keep every
+part and its quotes, and treat a PATCH that answers 201 as a record created, not one changed. When the key
+did not come from `@editLink`, read the record back after the write.
+
 ## Paging
 
 Observed: host A, 2026-09-28 (a 22,668-row table, two pages followed); host B, 2026-09-25 (three tables) and
@@ -194,6 +219,9 @@ POST  /fmi/odata/v4/{db}/{entitySet}                 body: { "Field": "value" }
 PATCH /fmi/odata/v4/{db}/{entitySet}(<record id>)    body: { "Field": "newValue" }
 ```
 
+`<record id>` is the whole key from the record's `@editLink`, every part of a composite key included: a
+partial key turns a PATCH into a create and points a DELETE at another record (see A composite key).
+
 A direct create or update is the simpler route when the change is a plain field write, and FileMaker still
 runs auto-enter calculations on it. Whether an agent may write at all is your organisation's rule; this
 guideline's default is reads.
@@ -222,6 +250,7 @@ One request per claim. Run each against a table you know.
 | quoted date fails silently | `?$filter=D ge '2020-01-01'` then `?$filter=D ge 2020-01-01` | the first returns nothing usable |
 | quote a failing name | `?$select=ID` then `?$select="ID"` | the first answers -1002, the second 200 |
 | entity key is the record id | read `@editLink` from a row, then `Table(<that number>)` | 200 with the record |
+| a partial composite key is bound to the first key field | on a throwaway record of a table with a composite key, `PATCH Table('<second key part>')` with one field, then read the table | 201, a new record holding that field, the throwaway unchanged; delete both with their full `@editLink` keys |
 | 10,000-row stop | a `$select` of one field on a table over 10,000 rows, no `$top` | 10,000 rows and `@nextLink` |
 | `@nextLink` with a timestamp filter | the same, with `$filter=<timestamp field> ge <ISO timestamp with Z>`; follow `@nextLink` as given, then with `%3A` replaced by `:` | the first answers -1002 at `%3A`, the second returns the next page |
 | `$count` | `?$count=true&$top=1` | `@count` in the response |
@@ -244,6 +273,7 @@ One request per claim. Run each against a table you know.
 | Annotations omit the `odata.` segment | host A 2026-09-28 (`@context`, `@count`, `@nextLink`, `@id`, `@editLink`); `@nextLink` also host B | none | not stated |
 | `ID` fails unquoted (-1002) and works double-quoted in `$select`, `$orderby`, `$filter` | host A 2026-09-28 | none | "Enclose field names that include special characters, such as spaces or underscores, in double-quotation marks." Reserved words not mentioned. |
 | The entity key is the record id from `@editLink`, not the `ID` field | host A 2026-09-28: `Table(<ID value>)` -1023, `Table('<ID value>')` 8309, `$filter="ID" eq <value>` 200 | none | not stated |
+| A composite key must be sent whole; a shorter key binds to the first key field: PATCH creates a record (201), DELETE removes the record holding that leading value (204) | host B 2026-10-22: a three-field key (two text UUIDs, a quoted number); on a throwaway record, PATCH with the second part alone 201 and a new record whose first key field held that value, the throwaway unchanged; PATCH with the full key 200 and changed; DELETE with the second part alone 204, the new record gone, the throwaway untouched; DELETE with the full key 204 and gone; table count back to where it started. Three runs, same statuses | none (first seen the same day on the same host, read then as success with no change) | not checked |
 | `$count=true` works; the count ignores `$top`, the rows honour it | host A 2026-09-28 (`@count: 22668`); host B 2026-09-29 (`@count: 3306`) | none | documented, with the `$top`/`$skip` note |
 | `$orderby` works, quoted and unquoted, on names with underscores | host A 2026-09-28; host B 2026-09-29 | none | quoting rule as above |
 | A dotted field name works in `$filter` and `$select` when the literal matches the type | host B 2026-09-29 (`_trigger.names eq 1`, numeric) | none | not stated |

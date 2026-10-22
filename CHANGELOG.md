@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.4, 2026-10-22
+
+A composite entity key must be sent whole. On host B a three-field key sent with one part was bound to the
+first key field and answered success: PATCH created a new record (201) instead of changing the one meant,
+DELETE (204) removed the record that held that value first. SKILL.md behaviour 4 now says to copy the key
+for a write from the record's own `@editLink`, every part, and that a PATCH answering 201 created a record.
+The guideline carries the evidence under A composite key.
+
 ## 1.0.3, 2026-10-05
 
 `~` in a query option value must be sent as `%7E`. Host B refused a raw `~` in a `$select` field name with
